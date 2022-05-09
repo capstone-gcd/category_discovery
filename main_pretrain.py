@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import torchvision
 import pytorch_lightning as pl
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
-from torchmetrics.functional import accuracy
+from pytorch_lightning.metrics import Accuracy
 
 from utils.data import get_datamodule
 from utils.nets import MultiHeadResNet
@@ -16,20 +16,20 @@ from datetime import datetime
 parser = ArgumentParser()
 parser.add_argument("--dataset", default="CIFAR10", type=str, help="dataset")
 parser.add_argument("--download", default=False, action="store_true", help="wether to download")
-parser.add_argument("--data_dir", default="/root/default/dataset/CIFAR", type=str, help="data directory")
+parser.add_argument("--data_dir", default="/path/to/dataset", type=str, help="data directory")
 parser.add_argument("--log_dir", default="logs", type=str, help="log directory")
 parser.add_argument("--checkpoint_dir", default="checkpoints", type=str, help="checkpoint dir")
 parser.add_argument("--batch_size", default=256, type=int, help="batch size")
 parser.add_argument("--num_workers", default=16, type=int, help="number of workers")
-parser.add_argument("--arch", default="vit_base", type=str, help="backbone architecture")
-parser.add_argument("--base_lr", default=0.001, type=float, help="learning rate")
-parser.add_argument("--min_lr", default=0.00001, type=float, help="min learning rate")
+parser.add_argument("--arch", default="resnet18", type=str, help="backbone architecture")
+parser.add_argument("--base_lr", default=0.1, type=float, help="learning rate")
+parser.add_argument("--min_lr", default=0.001, type=float, help="min learning rate")
 parser.add_argument("--momentum_opt", default=0.9, type=float, help="momentum for optimizer")
 parser.add_argument("--weight_decay_opt", default=1.0e-4, type=float, help="weight decay")
 parser.add_argument("--warmup_epochs", default=10, type=int, help="warmup epochs")
 parser.add_argument("--temperature", default=0.1, type=float, help="softmax temperature")
 parser.add_argument("--comment", default=datetime.now().strftime("%b%d_%H-%M-%S"), type=str)
-parser.add_argument("--project", default="uno_pretrain", type=str, help="wandb project")
+parser.add_argument("--project", default="kcc_pretrain", type=str, help="wandb project")
 parser.add_argument("--entity", default="dhk", type=str, help="wandb entity")
 parser.add_argument("--offline", default=False, action="store_true", help="disable wandb")
 parser.add_argument("--num_labeled_classes", default=5, type=int, help="number of labeled classes")
@@ -56,7 +56,7 @@ class Pretrainer(pl.LightningModule):
             self.model.load_state_dict(state_dict, strict=False)
 
         # metrics
-        # self.accuracy = Accuracy()
+        self.accuracy = Accuracy()
 
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(
@@ -107,7 +107,7 @@ class Pretrainer(pl.LightningModule):
 
         # calculate loss and accuracy
         loss_supervised = F.cross_entropy(logits, labels)
-        acc = accuracy(preds, labels)
+        acc = self.accuracy(preds, labels)
 
         # log
         results = {
