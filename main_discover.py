@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
-# from pytorch_lightning.metrics import Accuracy
+from pytorch_lightning.metrics import Accuracy
 
 from utils.data import get_datamodule
 from utils.nets import MultiHeadResNet
@@ -19,7 +19,7 @@ parser = ArgumentParser()
 parser.add_argument("--dataset", default="CIFAR100", type=str, help="dataset")
 parser.add_argument("--imagenet_split", default="A", type=str, help="imagenet split [A,B,C]")
 parser.add_argument("--download", default=False, action="store_true", help="wether to download")
-parser.add_argument("--data_dir", default="/root/default/Dataset/CIFAR", type=str, help="data directory")
+parser.add_argument("--data_dir", default="/root/dataset/CIFAR", type=str, help="data directory")
 parser.add_argument("--log_dir", default="logs", type=str, help="log directory")
 parser.add_argument("--batch_size", default=256, type=int, help="batch size")
 parser.add_argument("--num_workers", default=10, type=int, help="number of workers")
@@ -38,7 +38,7 @@ parser.add_argument("--num_iters_sk", default=3, type=int, help="number of iters
 parser.add_argument("--epsilon_sk", default=0.05, type=float, help="epsilon for the Sinkhorn")
 parser.add_argument("--temperature", default=0.1, type=float, help="softmax temperature")
 parser.add_argument("--comment", default=datetime.now().strftime("%b%d_%H-%M-%S"), type=str)
-parser.add_argument("--project", default="uno_discover", type=str, help="wandb project")
+parser.add_argument("--project", default="kcc_discover", type=str, help="wandb project")
 parser.add_argument("--entity", default="dhk", type=str, help="wandb entity")
 parser.add_argument("--offline", default=False, action="store_true", help="disable wandb")
 parser.add_argument("--num_labeled_classes", default=80, type=int, help="number of labeled classes")

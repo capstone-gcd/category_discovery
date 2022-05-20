@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models
 import utils.dino as vits
+import utils.supcon as supcon
 
 
 class Prototypes(nn.Module):
@@ -140,7 +141,7 @@ class MultiHeadResNet(nn.Module):
                 model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
                 model.maxpool = nn.Identity()
         elif 'vit' in arch:
-            model = vits.__dict__['vit_base'](patch_size=16)
+            model = vits.__dict__[arch](patch_size=8)
             self.feat_dim = model.num_features
         self._reinit_all_layers()
         return model
