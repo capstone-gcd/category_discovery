@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import torchvision
 import pytorch_lightning as pl
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
-from torchmetrics.functional import accuracy
+from pytorch_lightning.metrics import Accuracy
 
 from utils.data import get_datamodule
 from utils.nets import MultiHeadResNet
@@ -16,14 +16,14 @@ from datetime import datetime
 parser = ArgumentParser()
 parser.add_argument("--dataset", default="CIFAR10", type=str, help="dataset")
 parser.add_argument("--download", default=False, action="store_true", help="wether to download")
-parser.add_argument("--data_dir", default="/root/default/dataset/CIFAR", type=str, help="data directory")
+parser.add_argument("--data_dir", default="/path/to/dataset", type=str, help="data directory")
 parser.add_argument("--log_dir", default="logs", type=str, help="log directory")
 parser.add_argument("--checkpoint_dir", default="checkpoints", type=str, help="checkpoint dir")
 parser.add_argument("--batch_size", default=256, type=int, help="batch size")
 parser.add_argument("--num_workers", default=16, type=int, help="number of workers")
 parser.add_argument("--arch", default="vit_base", type=str, help="backbone architecture")
-parser.add_argument("--base_lr", default=0.001, type=float, help="learning rate")
-parser.add_argument("--min_lr", default=0.00001, type=float, help="min learning rate")
+parser.add_argument("--base_lr", default=0.1, type=float, help="learning rate")
+parser.add_argument("--min_lr", default=0.001, type=float, help="min learning rate")
 parser.add_argument("--momentum_opt", default=0.9, type=float, help="momentum for optimizer")
 parser.add_argument("--weight_decay_opt", default=1.0e-4, type=float, help="weight decay")
 parser.add_argument("--warmup_epochs", default=10, type=int, help="warmup epochs")
@@ -56,15 +56,21 @@ class Pretrainer(pl.LightningModule):
             self.model.load_state_dict(state_dict, strict=False)
 
         # metrics
-        # self.accuracy = Accuracy()
+        self.accuracy = Accuracy()
 
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(
-            self.model.parameters(),
-            lr=self.hparams.base_lr,
-            momentum=self.hparams.momentum_opt,
-            weight_decay=self.hparams.weight_decay_opt,
-        )
+        if 'vit' in self.hparams.arch:
+            optimizer = torch.optim.AdamW(
+                self.model.parameters(),
+                lr=self.hparams.base_lr
+            )
+        else:
+            optimizer = torch.optim.SGD(
+                self.model.parameters(),
+                lr=self.hparams.base_lr,
+                momentum=self.hparams.momentum_opt,
+                weight_decay=self.hparams.weight_decay_opt,
+            )
         scheduler = LinearWarmupCosineAnnealingLR(
             optimizer,
             warmup_epochs=self.hparams.warmup_epochs,
@@ -107,7 +113,7 @@ class Pretrainer(pl.LightningModule):
 
         # calculate loss and accuracy
         loss_supervised = F.cross_entropy(logits, labels)
-        acc = accuracy(preds, labels)
+        acc = self.accuracy(preds, labels)
 
         # log
         results = {

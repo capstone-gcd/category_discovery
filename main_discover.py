@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
-# from pytorch_lightning.metrics import Accuracy
+from pytorch_lightning.metrics import Accuracy
 
 from utils.data import get_datamodule
 from utils.nets import MultiHeadResNet
@@ -70,7 +70,7 @@ class Discoverer(pl.LightningModule):
         state_dict = torch.load(self.hparams.pretrained, map_location=self.device)
         state_dict = {k: v for k, v in state_dict.items() if ("unlab" not in k)}
         self.model.load_state_dict(state_dict, strict=False)
-
+        
         # Sinkorn-Knopp
         self.sk = SinkhornKnopp(
             num_iters=self.hparams.num_iters_sk, epsilon=self.hparams.epsilon_sk
@@ -96,19 +96,32 @@ class Discoverer(pl.LightningModule):
         self.register_buffer("loss_per_head", torch.zeros(self.hparams.num_heads))
 
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(
-            self.model.parameters(),
-            lr=self.hparams.base_lr,
-            momentum=self.hparams.momentum_opt,
-            weight_decay=self.hparams.weight_decay_opt,
-        )
-        scheduler = LinearWarmupCosineAnnealingLR(
-            optimizer,
-            warmup_epochs=self.hparams.warmup_epochs,
-            max_epochs=self.hparams.max_epochs,
-            warmup_start_lr=self.hparams.min_lr,
-            eta_min=self.hparams.min_lr,
-        )
+        if 'resnet' in self.hparams.arch:
+            optimizer = torch.optim.SGD(
+                self.model.parameters(),
+                lr=self.hparams.base_lr,
+                momentum=self.hparams.momentum_opt,
+                weight_decay=self.hparams.weight_decay_opt,
+            )
+            scheduler = LinearWarmupCosineAnnealingLR(
+                optimizer,
+                warmup_epochs=self.hparams.warmup_epochs,
+                max_epochs=self.hparams.max_epochs,
+                warmup_start_lr=self.hparams.min_lr,
+                eta_min=self.hparams.min_lr,
+            )
+        elif 'vit' in self.hparams.arch:
+            optimizer = torch.optim.AdamW(
+                self.model.parameters(),
+                lr=self.hparams.base_lr,
+            )
+            scheduler = LinearWarmupCosineAnnealingLR(
+                optimizer,
+                warmup_epochs=self.hparams.warmup_epochs,
+                max_epochs=self.hparams.max_epochs,
+                warmup_start_lr=self.hparams.min_lr,
+                eta_min=self.hparams.min_lr,
+            )
         return [optimizer], [scheduler]
 
     def cross_entropy_loss(self, preds, targets):
