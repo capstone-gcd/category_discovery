@@ -16,7 +16,7 @@ from datetime import datetime
 parser = ArgumentParser()
 parser.add_argument("--dataset", default="CIFAR10", type=str, help="dataset")
 parser.add_argument("--download", default=False, action="store_true", help="wether to download")
-parser.add_argument("--data_dir", default="/root/dataset/CIFAR", type=str, help="data directory")
+parser.add_argument("--data_dir", default="/path/to/dataset", type=str, help="data directory")
 parser.add_argument("--log_dir", default="logs", type=str, help="log directory")
 parser.add_argument("--checkpoint_dir", default="checkpoints", type=str, help="checkpoint dir")
 parser.add_argument("--batch_size", default=256, type=int, help="batch size")
@@ -29,7 +29,7 @@ parser.add_argument("--weight_decay_opt", default=1.0e-4, type=float, help="weig
 parser.add_argument("--warmup_epochs", default=10, type=int, help="warmup epochs")
 parser.add_argument("--temperature", default=0.1, type=float, help="softmax temperature")
 parser.add_argument("--comment", default=datetime.now().strftime("%b%d_%H-%M-%S"), type=str)
-parser.add_argument("--project", default="uno_pretrain", type=str, help="wandb project")
+parser.add_argument("--project", default="kcc_pretrain", type=str, help="wandb project")
 parser.add_argument("--entity", default="dhk", type=str, help="wandb entity")
 parser.add_argument("--offline", default=False, action="store_true", help="disa`ble wandb")
 parser.add_argument("--num_labeled_classes", default=5, type=int, help="number of labeled classes")
@@ -59,12 +59,18 @@ class Pretrainer(pl.LightningModule):
         self.accuracy = Accuracy()
 
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(
-            self.model.parameters(),
-            lr=self.hparams.base_lr,
-            momentum=self.hparams.momentum_opt,
-            weight_decay=self.hparams.weight_decay_opt,
-        )
+        if 'vit' in self.hparams.arch:
+            optimizer = torch.optim.AdamW(
+                self.model.parameters(),
+                lr=self.hparams.base_lr
+            )
+        else:
+            optimizer = torch.optim.SGD(
+                self.model.parameters(),
+                lr=self.hparams.base_lr,
+                momentum=self.hparams.momentum_opt,
+                weight_decay=self.hparams.weight_decay_opt,
+            )
         scheduler = LinearWarmupCosineAnnealingLR(
             optimizer,
             warmup_epochs=self.hparams.warmup_epochs,

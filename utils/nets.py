@@ -143,6 +143,9 @@ class MultiHeadResNet(nn.Module):
         elif 'vit' in arch:
             model = vits.__dict__[arch](patch_size=8)
             self.feat_dim = model.num_features
+        elif 'supcon' in arch:
+            model = supcon.resnet50()
+            self.feat_dim = 2048
         self._reinit_all_layers()
         return model
 

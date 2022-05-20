@@ -19,7 +19,7 @@ parser = ArgumentParser()
 parser.add_argument("--dataset", default="CIFAR100", type=str, help="dataset")
 parser.add_argument("--imagenet_split", default="A", type=str, help="imagenet split [A,B,C]")
 parser.add_argument("--download", default=False, action="store_true", help="wether to download")
-parser.add_argument("--data_dir", default="/root/dataset/CIFAR", type=str, help="data directory")
+parser.add_argument("--data_dir", default="path/to/dataset", type=str, help="data directory")
 parser.add_argument("--log_dir", default="logs", type=str, help="log directory")
 parser.add_argument("--batch_size", default=256, type=int, help="batch size")
 parser.add_argument("--num_workers", default=10, type=int, help="number of workers")
@@ -70,7 +70,7 @@ class Discoverer(pl.LightningModule):
         state_dict = torch.load(self.hparams.pretrained, map_location=self.device)
         state_dict = {k: v for k, v in state_dict.items() if ("unlab" not in k)}
         self.model.load_state_dict(state_dict, strict=False)
-
+        
         # Sinkorn-Knopp
         self.sk = SinkhornKnopp(
             num_iters=self.hparams.num_iters_sk, epsilon=self.hparams.epsilon_sk
@@ -96,19 +96,32 @@ class Discoverer(pl.LightningModule):
         self.register_buffer("loss_per_head", torch.zeros(self.hparams.num_heads))
 
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(
-            self.model.parameters(),
-            lr=self.hparams.base_lr,
-            momentum=self.hparams.momentum_opt,
-            weight_decay=self.hparams.weight_decay_opt,
-        )
-        scheduler = LinearWarmupCosineAnnealingLR(
-            optimizer,
-            warmup_epochs=self.hparams.warmup_epochs,
-            max_epochs=self.hparams.max_epochs,
-            warmup_start_lr=self.hparams.min_lr,
-            eta_min=self.hparams.min_lr,
-        )
+        if 'resnet' in self.hparams.arch:
+            optimizer = torch.optim.SGD(
+                self.model.parameters(),
+                lr=self.hparams.base_lr,
+                momentum=self.hparams.momentum_opt,
+                weight_decay=self.hparams.weight_decay_opt,
+            )
+            scheduler = LinearWarmupCosineAnnealingLR(
+                optimizer,
+                warmup_epochs=self.hparams.warmup_epochs,
+                max_epochs=self.hparams.max_epochs,
+                warmup_start_lr=self.hparams.min_lr,
+                eta_min=self.hparams.min_lr,
+            )
+        elif 'vit' in self.hparams.arch:
+            optimizer = torch.optim.AdamW(
+                self.model.parameters(),
+                lr=self.hparams.base_lr,
+            )
+            scheduler = LinearWarmupCosineAnnealingLR(
+                optimizer,
+                warmup_epochs=self.hparams.warmup_epochs,
+                max_epochs=self.hparams.max_epochs,
+                warmup_start_lr=self.hparams.min_lr,
+                eta_min=self.hparams.min_lr,
+            )
         return [optimizer], [scheduler]
 
     def cross_entropy_loss(self, preds, targets):
