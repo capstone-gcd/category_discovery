@@ -29,7 +29,7 @@ parser.add_argument("--weight_decay_opt", default=1.0e-4, type=float, help="weig
 parser.add_argument("--warmup_epochs", default=10, type=int, help="warmup epochs")
 parser.add_argument("--temperature", default=0.1, type=float, help="softmax temperature")
 parser.add_argument("--comment", default=datetime.now().strftime("%b%d_%H-%M-%S"), type=str)
-parser.add_argument("--project", default="uno_pretrain", type=str, help="wandb project")
+parser.add_argument("--project", default="kcc_pretrain", type=str, help="wandb project")
 parser.add_argument("--entity", default="dhk", type=str, help="wandb entity")
 parser.add_argument("--offline", default=False, action="store_true", help="disable wandb")
 parser.add_argument("--num_labeled_classes", default=5, type=int, help="number of labeled classes")
