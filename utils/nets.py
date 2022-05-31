@@ -89,11 +89,12 @@ class MultiHeadResNet(nn.Module):
         overcluster_factor=3,
         num_heads=5,
         num_hidden_layers=1,
+        method='none',
     ):
         super().__init__()
 
         # backbone
-        self.encoder = self.set_encoder(arch, low_res)
+        self.encoder = self.set_encoder(arch, low_res, method)
 
         self.head_lab = Prototypes(self.feat_dim, num_labeled)
         if num_heads is not None:
@@ -131,18 +132,37 @@ class MultiHeadResNet(nn.Module):
             self.head_unlab_over.normalize_prototypes()
     
     @torch.no_grad()
-    def set_encoder(self, arch, low_res):
-        if 'resnet' in arch:
-            model = models.__dict__[arch]()
-            self.feat_dim = model.fc.weight.shape[1]
-            model.fc = nn.Identity()
-            # modify the encoder for lower resolution
-            if low_res:
+    def set_encoder(self, arch, low_res, method):
+        if method is 'none':
+            if 'resnet' in arch:
+                model = models.__dict__[arch]()
+                self.feat_dim = model.fc.weight.shape[1]
                 model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
                 model.maxpool = nn.Identity()
-        elif 'vit' in arch:
-            model = vits.__dict__[arch](patch_size=8)
-            self.feat_dim = model.num_features
+                model.fc = nn.Identity()
+            elif 'vit' in arch:
+                model = None
+        elif method is 'imagenet':
+            if 'resnet' in arch:
+                model = models.__dict__[arch](pretrained=True)
+                self.feat_dim = model.fc.weight.shape[1]
+                model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+                model.maxpool = nn.Identity()
+                model.fc = nn.Identity()
+                # freeze layers
+                for name, param in model.named_parameters():
+                    if 'layer' in name:
+                        param.requires_grad = False
+            elif 'vit' in arch:
+                model = None
+        elif method is 'scl':
+            
+        else method is 'ssl':
+            if 'resnet' in arch:
+                
+            elif 'vit' in arch:
+                model = vits.__dict__[arch](patch_size=8)
+                self.feat_dim = model.num_features
         elif 'supcon' in arch:
             model = supcon.resnet50()
             self.feat_dim = 2048
