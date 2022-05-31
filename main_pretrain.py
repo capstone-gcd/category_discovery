@@ -38,7 +38,7 @@ parser.add_argument("--offline", default=False, action="store_true", help="disa`
 parser.add_argument("--num_labeled_classes", default=5, type=int, help="number of labeled classes")
 parser.add_argument("--num_unlabeled_classes", default=5, type=int, help="number of unlab classes")
 parser.add_argument("--pretrained", type=str, default=None, help="pretrained checkpoint path")
-parser.add_argument("--method", default="none", type=str, choices=['none','imagenet','scl','ssl'], help='pretraining method of backbone')
+parser.add_argument("--backbone", type=str, default=None, help="pretrained encoder checkpoint path")
 
 
 class Pretrainer(pl.LightningModule):
@@ -53,7 +53,7 @@ class Pretrainer(pl.LightningModule):
             num_labeled=self.hparams.num_labeled_classes,
             num_unlabeled=self.hparams.num_unlabeled_classes,
             num_heads=None,
-            method=self.hparams.method
+            backbone=self.hparams.backbone,
         )
 
         if self.hparams.pretrained is not None:
@@ -144,9 +144,10 @@ def main(args):
         offline=args.offline,
     )
 
+    accelerator = "ddp" if args.gpus > 1 else None
     model = Pretrainer(**args.__dict__)
     trainer = pl.Trainer.from_argparse_args(
-        args, logger=wandb_logger, callbacks=[PretrainCheckpointCallback()], accelerator="ddp"
+        args, logger=wandb_logger, callbacks=[PretrainCheckpointCallback()], accelerator=accelerator
     )
     trainer.fit(model, dm)
 

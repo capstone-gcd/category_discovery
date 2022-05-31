@@ -89,12 +89,12 @@ class MultiHeadResNet(nn.Module):
         overcluster_factor=3,
         num_heads=5,
         num_hidden_layers=1,
-        method='none',
+        backbone=None
     ):
         super().__init__()
 
         # backbone
-        self.encoder = self.set_encoder(arch, low_res, method)
+        self.encoder = self.set_encoder(arch, low_res, backbone)
 
         self.head_lab = Prototypes(self.feat_dim, num_labeled)
         if num_heads is not None:
@@ -132,41 +132,24 @@ class MultiHeadResNet(nn.Module):
             self.head_unlab_over.normalize_prototypes()
     
     @torch.no_grad()
-    def set_encoder(self, arch, low_res, method):
-        if method is 'none':
-            if 'resnet' in arch:
-                model = models.__dict__[arch]()
-                self.feat_dim = model.fc.weight.shape[1]
+    def set_encoder(self, arch, low_res, backbone):
+        if 'resnet' in arch:
+            model = models.__dict__[arch]()
+            self.feat_dim = model.fc.weight.shape[1]
+            model.fc = nn.Identity()
+            # modify the encoder for lower resolution
+            if low_res:
                 model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
                 model.maxpool = nn.Identity()
-                model.fc = nn.Identity()
-            elif 'vit' in arch:
-                model = None
-        elif method is 'imagenet':
-            if 'resnet' in arch:
-                model = models.__dict__[arch](pretrained=True)
-                self.feat_dim = model.fc.weight.shape[1]
-                model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-                model.maxpool = nn.Identity()
-                model.fc = nn.Identity()
-                # freeze layers
-                for name, param in model.named_parameters():
-                    if 'layer' in name:
-                        param.requires_grad = False
-            elif 'vit' in arch:
-                model = None
-        elif method is 'scl':
-            
-        else method is 'ssl':
-            if 'resnet' in arch:
-                
-            elif 'vit' in arch:
-                model = vits.__dict__[arch](patch_size=8)
-                self.feat_dim = model.num_features
-        elif 'supcon' in arch:
-            model = supcon.resnet50()
-            self.feat_dim = 2048
-        self._reinit_all_layers()
+        elif 'vit' in arch:
+            model = vits.__dict__[arch](patch_size=8, img_size= [32 if low_res else 224])
+            self.feat_dim = model.num_features
+        if backbone is None:
+            self._reinit_all_layers()
+        else:
+            assert type(backbone) is str, "Path not right"
+            ckpt = torch.load(backbone, map_location='cpu')
+            model.load_state_dict(ckpt, strict=False)
         return model
 
     def forward_heads(self, feats):
