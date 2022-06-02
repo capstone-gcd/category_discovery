@@ -137,6 +137,9 @@ class MultiHeadResNet(nn.Module):
             model = models.__dict__[arch]()
             self.feat_dim = model.fc.weight.shape[1]
             model.fc = nn.Identity()
+            if backbone:
+                ckpt = torch.load(backbone, map_location='cpu')
+                model.load_state_dict(ckpt, strict=False)
             # modify the encoder for lower resolution
             if low_res:
                 model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
@@ -144,12 +147,13 @@ class MultiHeadResNet(nn.Module):
         elif 'vit' in arch:
             model = vits.__dict__[arch](patch_size=8, img_size= [32 if low_res else 224])
             self.feat_dim = model.num_features
+            if backbone:
+                ckpt = torch.load(backbone, map_location='cpu')
+                if low_res:
+                    del ckpt['patch_embed.proj.weight'],ckpt['patch_embed.proj.bias'],ckpt['pos_embed']
+                model.load_state_dict(ckpt, strict=False)
         if backbone is None:
             self._reinit_all_layers()
-        else:
-            assert type(backbone) is str, "Path not right"
-            ckpt = torch.load(backbone, map_location='cpu')
-            model.load_state_dict(ckpt, strict=False)
         return model
 
     def forward_heads(self, feats):
