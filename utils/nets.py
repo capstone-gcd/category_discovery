@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models
 import utils.dino as vits
-import utils.supcon as supcon
 
 
 class Prototypes(nn.Module):
@@ -89,12 +88,13 @@ class MultiHeadResNet(nn.Module):
         overcluster_factor=3,
         num_heads=5,
         num_hidden_layers=1,
-        backbone=None
+        backbone=None,
+        freeze=False,
     ):
         super().__init__()
 
         # backbone
-        self.encoder = self.set_encoder(arch, low_res, backbone)
+        self.encoder = self.set_encoder(arch, low_res, backbone, freeze)
 
         self.head_lab = Prototypes(self.feat_dim, num_labeled)
         if num_heads is not None:
@@ -132,26 +132,38 @@ class MultiHeadResNet(nn.Module):
             self.head_unlab_over.normalize_prototypes()
     
     @torch.no_grad()
-    def set_encoder(self, arch, low_res, backbone):
+    def set_encoder(self, arch, low_res, backbone, freeze):
         if 'resnet' in arch:
             model = models.__dict__[arch]()
             self.feat_dim = model.fc.weight.shape[1]
             model.fc = nn.Identity()
-            if backbone:
-                ckpt = torch.load(backbone, map_location='cpu')
+            if backbone is not None:
+                ckpt = torch.load(backbone, map_location=torch.device('cpu'))
                 model.load_state_dict(ckpt, strict=False)
+            if freeze:
+                for param in model.layer1.parameters():
+                    param.requires_grad = False
+                for param in model.layer2.parameters():
+                    param.requires_grad = False
+                for param in model.layer3.parameters():
+                    param.requires_grad = False
+                for param in model.layer4.parameters():
+                    param.requires_grad = False
             # modify the encoder for lower resolution
             if low_res:
                 model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
                 model.maxpool = nn.Identity()
         elif 'vit' in arch:
-            model = vits.__dict__[arch](patch_size=8, img_size= [32 if low_res else 224])
+            model = vits.__dict__[arch](patch_size=16, img_size= [32 if low_res else 224])
             self.feat_dim = model.num_features
-            if backbone:
-                ckpt = torch.load(backbone, map_location='cpu')
-                if low_res:
+            if backbone is not None:
+                ckpt = torch.load(backbone, map_location=torch.device('cpu'))
+                if low_res and 'sup' not in backbone:
                     del ckpt['patch_embed.proj.weight'],ckpt['patch_embed.proj.bias'],ckpt['pos_embed']
                 model.load_state_dict(ckpt, strict=False)
+            if freeze:
+                for param in model.blocks.parameters():
+                    param.requires_grad = False
         if backbone is None:
             self._reinit_all_layers()
         return model
