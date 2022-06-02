@@ -39,6 +39,7 @@ parser.add_argument("--num_labeled_classes", default=5, type=int, help="number o
 parser.add_argument("--num_unlabeled_classes", default=5, type=int, help="number of unlab classes")
 parser.add_argument("--pretrained", type=str, default=None, help="pretrained checkpoint path")
 parser.add_argument("--backbone", type=str, default=None, help="pretrained encoder checkpoint path")
+parser.add_argument("--freeze", action='store_true', help="pretrained encoder checkpoint path")
 
 
 class Pretrainer(pl.LightningModule):
@@ -54,6 +55,7 @@ class Pretrainer(pl.LightningModule):
             num_unlabeled=self.hparams.num_unlabeled_classes,
             num_heads=None,
             backbone=self.hparams.backbone,
+            freeze=self.hparams.freeze
         )
 
         if self.hparams.pretrained is not None:
