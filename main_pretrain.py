@@ -1,8 +1,9 @@
+import sched
 import torch
 import torch.nn.functional as F
 import torchvision
 import pytorch_lightning as pl
-from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
+from pl_bolts.optimizers import lr_scheduler
 from pytorch_lightning.metrics import Accuracy
 
 from utils.data import get_datamodule
@@ -22,6 +23,8 @@ parser.add_argument("--checkpoint_dir", default="checkpoints", type=str, help="c
 parser.add_argument("--batch_size", default=256, type=int, help="batch size")
 parser.add_argument("--num_workers", default=16, type=int, help="number of workers")
 parser.add_argument("--arch", default="vit_base", type=str, help="backbone architecture")
+parser.add_argument('--optim', default='sgd', type=str, help="optimizer")
+parser.add_argument("--scheduler", default='cosine', type=str, help='learning rate scheduler')
 parser.add_argument("--base_lr", default=0.1, type=float, help="learning rate")
 parser.add_argument("--min_lr", default=0.001, type=float, help="min learning rate")
 parser.add_argument("--momentum_opt", default=0.9, type=float, help="momentum for optimizer")
@@ -31,11 +34,12 @@ parser.add_argument("--temperature", default=0.1, type=float, help="softmax temp
 parser.add_argument("--comment", default=datetime.now().strftime("%b%d_%H-%M-%S"), type=str)
 parser.add_argument("--project", default="kcc_pretrain", type=str, help="wandb project")
 parser.add_argument("--entity", default="dhk", type=str, help="wandb entity")
-parser.add_argument("--offline", default=False, action="store_true", help="disable wandb")
+parser.add_argument("--offline", default=False, action="store_true", help="disa`ble wandb")
 parser.add_argument("--num_labeled_classes", default=5, type=int, help="number of labeled classes")
 parser.add_argument("--num_unlabeled_classes", default=5, type=int, help="number of unlab classes")
 parser.add_argument("--pretrained", type=str, default=None, help="pretrained checkpoint path")
 parser.add_argument("--backbone", type=str, default=None, help="pretrained encoder checkpoint path")
+parser.add_argument("--freeze", action='store_true', help="pretrained encoder checkpoint path")
 
 
 class Pretrainer(pl.LightningModule):
@@ -51,6 +55,7 @@ class Pretrainer(pl.LightningModule):
             num_unlabeled=self.hparams.num_unlabeled_classes,
             num_heads=None,
             backbone=self.hparams.backbone,
+            freeze=self.hparams.freeze
         )
 
         if self.hparams.pretrained is not None:
@@ -61,25 +66,26 @@ class Pretrainer(pl.LightningModule):
         self.accuracy = Accuracy()
 
     def configure_optimizers(self):
-        if 'vit' in self.hparams.arch:
+        if self.hparams.optim == 'adamw':
             optimizer = torch.optim.AdamW(
                 self.model.parameters(),
                 lr=self.hparams.base_lr
             )
-        else:
+        elif self.hparams.optim == 'sgd':
             optimizer = torch.optim.SGD(
                 self.model.parameters(),
                 lr=self.hparams.base_lr,
                 momentum=self.hparams.momentum_opt,
                 weight_decay=self.hparams.weight_decay_opt,
             )
-        scheduler = LinearWarmupCosineAnnealingLR(
-            optimizer,
-            warmup_epochs=self.hparams.warmup_epochs,
-            max_epochs=self.hparams.max_epochs,
-            warmup_start_lr=self.hparams.min_lr,
-            eta_min=self.hparams.min_lr,
-        )
+        if self.hparams.scheduler == 'cosine':
+            scheduler = lr_scheduler.LinearWarmupCosineAnnealingLR(
+                optimizer,
+                warmup_epochs=self.hparams.warmup_epochs,
+                max_epochs=self.hparams.max_epochs,
+                warmup_start_lr=self.hparams.min_lr,
+                eta_min=self.hparams.min_lr,
+            )
         return [optimizer], [scheduler]
 
     def training_step(self, batch, batch_idx):

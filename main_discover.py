@@ -103,25 +103,18 @@ class Discoverer(pl.LightningModule):
                 momentum=self.hparams.momentum_opt,
                 weight_decay=self.hparams.weight_decay_opt,
             )
-            scheduler = LinearWarmupCosineAnnealingLR(
-                optimizer,
-                warmup_epochs=self.hparams.warmup_epochs,
-                max_epochs=self.hparams.max_epochs,
-                warmup_start_lr=self.hparams.min_lr,
-                eta_min=self.hparams.min_lr,
-            )
         elif 'vit' in self.hparams.arch:
             optimizer = torch.optim.AdamW(
                 self.model.parameters(),
                 lr=self.hparams.base_lr,
             )
-            scheduler = LinearWarmupCosineAnnealingLR(
-                optimizer,
-                warmup_epochs=self.hparams.warmup_epochs,
-                max_epochs=self.hparams.max_epochs,
-                warmup_start_lr=self.hparams.min_lr,
-                eta_min=self.hparams.min_lr,
-            )
+        scheduler = LinearWarmupCosineAnnealingLR(
+            optimizer,
+            warmup_epochs=self.hparams.warmup_epochs,
+            max_epochs=self.hparams.max_epochs,
+            warmup_start_lr=self.hparams.min_lr,
+            eta_min=self.hparams.min_lr,
+        )
         return [optimizer], [scheduler]
 
     def cross_entropy_loss(self, preds, targets):
