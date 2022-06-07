@@ -6,7 +6,7 @@ from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from pytorch_lightning.metrics import Accuracy
 
 from utils.data import get_datamodule
-from utils.nets import MultiHeadResNet
+from utils.nets import MultiHeadEncoder
 from utils.eval import ClusterMetrics
 from utils.sinkhorn_knopp import SinkhornKnopp
 
@@ -23,7 +23,9 @@ parser.add_argument("--data_dir", default="path/to/dataset", type=str, help="dat
 parser.add_argument("--log_dir", default="logs", type=str, help="log directory")
 parser.add_argument("--batch_size", default=256, type=int, help="batch size")
 parser.add_argument("--num_workers", default=10, type=int, help="number of workers")
+parser.add_argument("--img_size", default=32, type=int, help="size of input images")
 parser.add_argument("--arch", default="resnet18", type=str, help="backbone architecture")
+parser.add_argument("--patch_size", default=4, type=int, help="patch size of vision transformers")
 parser.add_argument("--base_lr", default=0.4, type=float, help="learning rate")
 parser.add_argument("--min_lr", default=0.001, type=float, help="min learning rate")
 parser.add_argument("--momentum_opt", default=0.9, type=float, help="momentum for optimizer")
@@ -55,8 +57,9 @@ class Discoverer(pl.LightningModule):
         self.save_hyperparameters({k: v for (k, v) in kwargs.items() if not callable(v)})
 
         # build model
-        self.model = MultiHeadResNet(
+        self.model = MultiHeadEncoder(
             arch=self.hparams.arch,
+            patch_size=self.hparams.patch_size,
             low_res="CIFAR" in self.hparams.dataset,
             num_labeled=self.hparams.num_labeled_classes,
             num_unlabeled=self.hparams.num_unlabeled_classes,
@@ -260,7 +263,8 @@ class Discoverer(pl.LightningModule):
 def main(args):
     dm = get_datamodule(args, "discover")
 
-    run_name = "-".join(["discover", args.arch, args.dataset, args.comment])
+    arch_name = args.arch if 'resnet' in args.arch else '_'.join([args.arch, str(args.patch_size)])
+    run_name = "-".join(["discover", arch_name, args.dataset, args.comment])
     wandb_logger = pl.loggers.WandbLogger(
         save_dir=args.log_dir,
         name=run_name,

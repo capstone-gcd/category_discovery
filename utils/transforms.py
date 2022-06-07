@@ -86,18 +86,13 @@ class MultiTransform:
         return [t(x) for t in self.transforms]
 
 
-def get_transforms(mode, dataset, multicrop=False, num_large_crops=2, num_small_crops=2, model='resnet18'):
+def get_transforms(mode, dataset, multicrop=False, num_large_crops=2, num_small_crops=2, size=32):
 
     mean, std = {
         "CIFAR10": [(0.491, 0.482, 0.447), (0.202, 0.199, 0.201)],
         "CIFAR100": [(0.507, 0.487, 0.441), (0.267, 0.256, 0.276)],
         "ImageNet": [(0.485, 0.456, 0.406), (0.229, 0.224, 0.225)],
     }[dataset]
-
-    if 'resnet' in model and "CIFAR" in dataset:
-        size = 32
-    elif 'vit' in model and "CIFAR" in dataset:
-        size = 224
 
     transform = {
         "ImageNet": {

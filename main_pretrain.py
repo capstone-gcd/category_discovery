@@ -7,7 +7,7 @@ from pl_bolts.optimizers import lr_scheduler
 from pytorch_lightning.metrics import Accuracy
 
 from utils.data import get_datamodule
-from utils.nets import MultiHeadResNet
+from utils.nets import MultiHeadEncoder
 from utils.callbacks import PretrainCheckpointCallback
 
 from argparse import ArgumentParser
@@ -22,7 +22,9 @@ parser.add_argument("--log_dir", default="logs", type=str, help="log directory")
 parser.add_argument("--checkpoint_dir", default="checkpoints", type=str, help="checkpoint dir")
 parser.add_argument("--batch_size", default=256, type=int, help="batch size")
 parser.add_argument("--num_workers", default=16, type=int, help="number of workers")
+parser.add_argument("--img_size", default=32, type=int, help="size of input images")
 parser.add_argument("--arch", default="vit_base", type=str, help="backbone architecture")
+parser.add_argument("--patch_size", default=4, type=int, help="patch size of vision transformers")
 parser.add_argument('--optim', default='sgd', type=str, help="optimizer")
 parser.add_argument("--scheduler", default='cosine', type=str, help='learning rate scheduler')
 parser.add_argument("--base_lr", default=0.1, type=float, help="learning rate")
@@ -38,7 +40,6 @@ parser.add_argument("--offline", default=False, action="store_true", help="disa`
 parser.add_argument("--num_labeled_classes", default=5, type=int, help="number of labeled classes")
 parser.add_argument("--num_unlabeled_classes", default=5, type=int, help="number of unlab classes")
 parser.add_argument("--pretrained", type=str, default=None, help="pretrained checkpoint path")
-parser.add_argument("--backbone", type=str, default=None, help="pretrained encoder checkpoint path")
 parser.add_argument("--freeze", action='store_true', help="pretrained encoder checkpoint path")
 
 
@@ -48,19 +49,16 @@ class Pretrainer(pl.LightningModule):
         self.save_hyperparameters({k: v for (k, v) in kwargs.items() if not callable(v)})
 
         # build model
-        self.model = MultiHeadResNet(
+        self.model = MultiHeadEncoder(
             arch=self.hparams.arch,
+            patch_size=self.hparams.patch_size,
             low_res="CIFAR" in self.hparams.dataset,
             num_labeled=self.hparams.num_labeled_classes,
             num_unlabeled=self.hparams.num_unlabeled_classes,
             num_heads=None,
-            backbone=self.hparams.backbone,
+            pretrained=self.hparams.pretrained,
             freeze=self.hparams.freeze
         )
-
-        if self.hparams.pretrained is not None:
-            state_dict = torch.load(self.hparams.pretrained)
-            self.model.load_state_dict(state_dict, strict=False)
 
         # metrics
         self.accuracy = Accuracy()
@@ -137,7 +135,8 @@ def main(args):
     dm = get_datamodule(args, "pretrain")
 
     # logger
-    run_name = "-".join(["pretrain", args.arch, args.dataset, args.comment])
+    arch_name = args.arch if 'resnet' in args.arch else '_'.join([args.arch, str(args.patch_size)])
+    run_name = "-".join(["pretrain", arch_name, args.dataset, args.comment])
     wandb_logger = pl.loggers.WandbLogger(
         save_dir=args.log_dir,
         name=run_name,

@@ -18,4 +18,5 @@ class PretrainCheckpointCallback(Callback):
             + ".cp"
         )
         checkpoint_path = os.path.join(pl_module.hparams.checkpoint_dir, checkpoint_filename)
-        torch.save(pl_module.model.state_dict(), checkpoint_path)
+        if trainer.global_rank == 0:
+            torch.save(pl_module.model.state_dict(), checkpoint_path)

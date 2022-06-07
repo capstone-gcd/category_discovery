@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models
-import utils.dino as vits
+import utils.vit as vits
 
 
 class Prototypes(nn.Module):
@@ -76,10 +76,11 @@ class MultiHead(nn.Module):
         return [torch.stack(o) for o in map(list, zip(*out))]
 
 
-class MultiHeadResNet(nn.Module):
+class MultiHeadEncoder(nn.Module):
     def __init__(
         self,
         arch,
+        patch_size,
         low_res,
         num_labeled,
         num_unlabeled,
@@ -88,13 +89,13 @@ class MultiHeadResNet(nn.Module):
         overcluster_factor=3,
         num_heads=5,
         num_hidden_layers=1,
-        backbone=None,
+        pretrained=None,
         freeze=False,
     ):
         super().__init__()
 
         # backbone
-        self.encoder = self.set_encoder(arch, low_res, backbone, freeze)
+        self.encoder = self.set_encoder(arch, low_res, pretrained, freeze)
 
         self.head_lab = Prototypes(self.feat_dim, num_labeled)
         if num_heads is not None:
@@ -132,13 +133,13 @@ class MultiHeadResNet(nn.Module):
             self.head_unlab_over.normalize_prototypes()
     
     @torch.no_grad()
-    def set_encoder(self, arch, low_res, backbone, freeze):
+    def set_encoder(self, arch, low_res, pretrained, freeze):
         if 'resnet' in arch:
             model = models.__dict__[arch]()
             self.feat_dim = model.fc.weight.shape[1]
             model.fc = nn.Identity()
-            if backbone is not None:
-                ckpt = torch.load(backbone, map_location=torch.device('cpu'))
+            if pretrained is not None:
+                ckpt = torch.load(pretrained, map_location=torch.device('cpu'))
                 model.load_state_dict(ckpt, strict=False)
             if freeze:
                 for param in model.layer1.parameters():
@@ -153,18 +154,28 @@ class MultiHeadResNet(nn.Module):
             if low_res:
                 model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
                 model.maxpool = nn.Identity()
+        # elif 'vit_base' in arch:
+        #     model = vits.__dict__[arch](patch_size=16)
+        #     self.feat_dim = model.num_features
+        #     if backbone is not None:
+        #         ckpt = torch.load(backbone, map_location=torch.device('cpu'))
+        #         if 'sup' in backbone:
+        #             del ckpt['pos_embed'], ckpt['patch_embed.proj.weight'], ckpt['patch_embed.proj.bias']
+        #         model.load_state_dict(ckpt, strict=False)
+        #     if freeze:
+        #         for param in model.blocks.parameters():
+        #             param.requires_grad = False
         elif 'vit' in arch:
-            model = vits.__dict__[arch](patch_size=16)
-            self.feat_dim = model.num_features
-            if backbone is not None:
-                ckpt = torch.load(backbone, map_location=torch.device('cpu'))
-                if 'sup' in backbone:
-                    del ckpt['pos_embed'], ckpt['patch_embed.proj.weight'], ckpt['patch_embed.proj.bias']
-                model.load_state_dict(ckpt, strict=False)
+            model = vits.__dict__[arch](
+                        image_size=32 if low_res else 224,
+                        patch_size=4 if low_res else 16,
+                        pretrained=pretrained
+                    )
+            self.feat_dim = model.hidden_dim
             if freeze:
-                for param in model.blocks.parameters():
+                for param in model.encoder.parameters():
                     param.requires_grad = False
-        if backbone is None:
+        if pretrained is None:
             self._reinit_all_layers()
         return model
 
