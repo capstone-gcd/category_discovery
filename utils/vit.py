@@ -56,6 +56,7 @@ class EncoderBlock(nn.Module):
         # version matching for torch==1.7.1
         x = x.permute(1,0,2)
         x, _ = self.self_attention(query=x, key=x, value=x, need_weights=False)
+        x = x.permute(1,0,2)
         x = self.dropout(x)
         x = x + input
 

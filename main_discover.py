@@ -17,6 +17,7 @@ from datetime import datetime
 
 parser = ArgumentParser()
 parser.add_argument("--dataset", default="CIFAR100", type=str, help="dataset")
+parser.add_argument("--flip", action='store_true', default=False, help="use different classes")
 parser.add_argument("--imagenet_split", default="A", type=str, help="imagenet split [A,B,C]")
 parser.add_argument("--download", default=False, action="store_true", help="wether to download")
 parser.add_argument("--data_dir", default="path/to/dataset", type=str, help="data directory")
