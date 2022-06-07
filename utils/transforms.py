@@ -49,7 +49,7 @@ class Equalize(object):
         return ImageOps.equalize(img)
 
 
-def get_multicrop_transform(dataset, mean, std):
+def get_multicrop_transform(dataset, size, mean, std):
     if dataset == "ImageNet":
         return T.Compose(
             [
@@ -63,7 +63,7 @@ def get_multicrop_transform(dataset, mean, std):
             ]
         )
     elif "CIFAR" in dataset:
-        return T.Compose(
+        transform = T.Compose(
             [
                 T.RandomResizedCrop(size=18, scale=(0.3, 0.8)),
                 T.RandomHorizontalFlip(),
@@ -74,6 +74,8 @@ def get_multicrop_transform(dataset, mean, std):
                 T.Normalize(mean, std),
             ]
         )
+        transform.transforms.append(1, T.Resize(size))
+        return transform
 
 
 class MultiTransform:
@@ -84,7 +86,7 @@ class MultiTransform:
         return [t(x) for t in self.transforms]
 
 
-def get_transforms(mode, dataset, multicrop=False, num_large_crops=2, num_small_crops=2):
+def get_transforms(mode, dataset, multicrop=False, num_large_crops=2, num_small_crops=2, size=32):
 
     mean, std = {
         "CIFAR10": [(0.491, 0.482, 0.447), (0.202, 0.199, 0.201)],
@@ -123,6 +125,7 @@ def get_transforms(mode, dataset, multicrop=False, num_large_crops=2, num_small_
                             T.RandomResizedCrop(32, (0.5, 1.0)),
                         ]
                     ),
+                    T.Resize(size),
                     T.RandomHorizontalFlip(),
                     T.RandomApply([T.ColorJitter(0.4, 0.4, 0.2, 0.1)], p=0.6),
                     Solarize(p=0.1),
@@ -134,6 +137,7 @@ def get_transforms(mode, dataset, multicrop=False, num_large_crops=2, num_small_
             "supervised": T.Compose(
                 [
                     T.RandomCrop(32, padding=4),
+                    T.Resize(size),
                     T.RandomHorizontalFlip(),
                     T.ToTensor(),
                     T.Normalize(mean, std),
@@ -142,6 +146,7 @@ def get_transforms(mode, dataset, multicrop=False, num_large_crops=2, num_small_
             "eval": T.Compose(
                 [
                     T.CenterCrop(32),
+                    T.Resize(size),
                     T.ToTensor(),
                     T.Normalize(mean, std),
                 ]
@@ -156,6 +161,7 @@ def get_transforms(mode, dataset, multicrop=False, num_large_crops=2, num_small_
                             T.RandomResizedCrop(32, (0.5, 1.0)),
                         ]
                     ),
+                    T.Resize(size),
                     T.RandomHorizontalFlip(),
                     T.RandomApply([T.ColorJitter(0.4, 0.4, 0.2, 0.1)], p=0.6),
                     Solarize(p=0.1),
@@ -167,6 +173,7 @@ def get_transforms(mode, dataset, multicrop=False, num_large_crops=2, num_small_
             "supervised": T.Compose(
                 [
                     T.RandomCrop(32, padding=4),
+                    T.Resize(size),
                     T.RandomHorizontalFlip(),
                     T.ToTensor(),
                     T.Normalize(mean, std),
@@ -175,6 +182,7 @@ def get_transforms(mode, dataset, multicrop=False, num_large_crops=2, num_small_
             "eval": T.Compose(
                 [
                     T.CenterCrop(32),
+                    T.Resize(size),
                     T.ToTensor(),
                     T.Normalize(mean, std),
                 ]
@@ -185,7 +193,7 @@ def get_transforms(mode, dataset, multicrop=False, num_large_crops=2, num_small_
     if mode == "unsupervised":
         transforms = [transform] * num_large_crops
         if multicrop:
-            multicrop_transform = get_multicrop_transform(dataset, mean, std)
+            multicrop_transform = get_multicrop_transform(dataset, size, mean, std)
             transforms += [multicrop_transform] * num_small_crops
         transform = MultiTransform(transforms)
 

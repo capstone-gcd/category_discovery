@@ -32,8 +32,8 @@ class PretrainCIFARDataModule(pl.LightningDataModule):
         self.num_labeled_classes = args.num_labeled_classes
         self.num_unlabeled_classes = args.num_unlabeled_classes
         self.dataset_class = getattr(torchvision.datasets, args.dataset)
-        self.transform_train = get_transforms("unsupervised", args.dataset)
-        self.transform_val = get_transforms("eval", args.dataset)
+        self.transform_train = get_transforms("unsupervised", args.dataset, model=args.arch)
+        self.transform_val = get_transforms("eval", args.dataset, model=args.arch)
 
     def prepare_data(self):
         self.dataset_class(self.data_dir, train=True, download=self.download)
@@ -95,8 +95,9 @@ class DiscoverCIFARDataModule(pl.LightningDataModule):
             multicrop=args.multicrop,
             num_large_crops=args.num_large_crops,
             num_small_crops=args.num_small_crops,
+            model=args.arch
         )
-        self.transform_val = get_transforms("eval", args.dataset)
+        self.transform_val = get_transforms("eval", args.dataset, model=args.arch)
 
     def prepare_data(self):
         self.dataset_class(self.data_dir, train=True, download=self.download)
@@ -515,7 +516,7 @@ class PretrainImageNetDataModule(pl.LightningDataModule):
 
     def prepare_data(self):
         pass
-
+ 
     def setup(self, stage=None):
         train_data_dir = os.path.join(self.data_dir, "train")
         val_data_dir = os.path.join(self.data_dir, "val")
