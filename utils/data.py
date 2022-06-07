@@ -100,7 +100,7 @@ class DiscoverCIFARDataModule(pl.LightningDataModule):
             multicrop=args.multicrop,
             num_large_crops=args.num_large_crops,
             num_small_crops=args.num_small_crops,
-            size=args.img_size
+            size=args.img_size,
         )
         self.transform_val = get_transforms("eval", args.dataset, size=args.img_size)
 

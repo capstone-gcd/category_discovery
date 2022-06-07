@@ -6,11 +6,12 @@ import os
 
 class PretrainCheckpointCallback(Callback):
     def on_save_checkpoint(self, trainer, pl_module):
+        arch_name = pl_module.hparams.arch if 'resnet' in pl_module.hparams.arch else '_'.join([pl_module.hparams.arch, str(pl_module.hparams.patch_size)])
         checkpoint_filename = (
             "-".join(
                 [
                     "pretrain",
-                    pl_module.hparams.arch,
+                    arch_name,
                     pl_module.hparams.dataset,
                     pl_module.hparams.comment,
                 ]

@@ -5,6 +5,7 @@ from typing import Any, Callable, List, NamedTuple, Optional
 
 import torch
 import torch.nn as nn
+from torchvision.transforms import Pad
 
 
 class MLPBlock(nn.Sequential):
@@ -159,8 +160,12 @@ class VisionTransformer(nn.Module):
     def _process_input(self, x: torch.Tensor) -> torch.Tensor:
         n, c, h, w = x.shape
         p = self.patch_size
-        assert h == self.image_size, "Wrong image height!"
-        assert w == self.image_size, "Wrong image width!"
+        # assert h == self.image_size, "Wrong image height!"
+        # assert w == self.image_size, "Wrong image width!"
+        if h != self.image_size or w != self.image_size:
+            x = Pad((self.image_size-h)//2)(x)
+            w = h = self.image_size
+
         n_h = h // p
         n_w = w // p
 
