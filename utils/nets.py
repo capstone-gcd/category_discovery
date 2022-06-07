@@ -95,6 +95,7 @@ class MultiHeadEncoder(nn.Module):
         super().__init__()
 
         # backbone
+        self.patch_size = patch_size
         self.encoder = self.set_encoder(arch, low_res, pretrained, freeze)
 
         self.head_lab = Prototypes(self.feat_dim, num_labeled)
@@ -168,7 +169,7 @@ class MultiHeadEncoder(nn.Module):
         elif 'vit' in arch:
             model = vits.__dict__[arch](
                         image_size=32 if low_res else 224,
-                        patch_size=4 if low_res else 16,
+                        patch_size=self.patch_size,
                         pretrained=pretrained
                     )
             self.feat_dim = model.hidden_dim

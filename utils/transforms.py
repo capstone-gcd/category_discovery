@@ -74,7 +74,6 @@ def get_multicrop_transform(dataset, size, mean, std):
                 T.Normalize(mean, std),
             ]
         )
-        transform.transforms.append(1, T.Resize(size))
         return transform
 
 
