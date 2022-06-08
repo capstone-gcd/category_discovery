@@ -25,7 +25,7 @@ def get_datamodule(args, mode):
 class PretrainCIFARDataModule(pl.LightningDataModule):
     def __init__(self, args):
         super().__init__()
-        self.flip = args.flip
+        self.label_flip = args.flip
         self.data_dir = args.data_dir
         self.download = args.download
         self.batch_size = args.batch_size
@@ -41,10 +41,12 @@ class PretrainCIFARDataModule(pl.LightningDataModule):
         self.dataset_class(self.data_dir, train=False, download=self.download)
 
     def setup(self, stage=None):
-        if not self.flip:
+        if self.label_flip:
+            labeled_classes = range(
+                self.num_unlabeled_classes, self.num_labeled_classes + self.num_unlabeled_classes
+            )
+        else:
             labeled_classes = range(self.num_labeled_classes)
-        elif self.flip:
-            labeled_classes = range(self.num_unlabeled_classes, self.num_labeled_classes + self.num_unlabeled_classes)
 
         # train dataset
         self.train_dataset = self.dataset_class(
@@ -86,7 +88,7 @@ class PretrainCIFARDataModule(pl.LightningDataModule):
 class DiscoverCIFARDataModule(pl.LightningDataModule):
     def __init__(self, args):
         super().__init__()
-        self.flip = args.flip
+        self.label_flip = args.flip
         self.data_dir = args.data_dir
         self.download = args.download
         self.batch_size = args.batch_size
@@ -109,7 +111,7 @@ class DiscoverCIFARDataModule(pl.LightningDataModule):
         self.dataset_class(self.data_dir, train=False, download=self.download)
 
     def setup(self, stage=None):
-        if not self.flip:
+        if not self.label_flip:
             labeled_classes = range(self.num_labeled_classes)
             unlabeled_classes = range(
                 self.num_labeled_classes, self.num_labeled_classes + self.num_unlabeled_classes

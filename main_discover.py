@@ -145,12 +145,16 @@ class Discoverer(pl.LightningModule):
             labels = torch.cat([labels_lab, labels_unlab])
         else:
             views, labels = batch
-        mask_lab = labels < self.hparams.num_labeled_classes
+        if self.hparams.flip:
+            mask_lab = labels >= self.hparams.num_unlabeled_classes
+        else:
+            mask_lab = labels < self.hparams.num_labeled_classes
         return views, labels, mask_lab
 
     def training_step(self, batch, _):
         views, labels, mask_lab = self.unpack_batch(batch)
         nlc = self.hparams.num_labeled_classes
+        nuc = self.hparams.num_unlabeled_classes
 
         # normalize prototypes
         self.model.normalize_prototypes()
@@ -167,8 +171,10 @@ class Discoverer(pl.LightningModule):
 
         # create targets
         targets_lab = (
-            F.one_hot(labels[mask_lab], num_classes=self.hparams.num_labeled_classes)
-            .float()
+            F.one_hot(
+                labels[mask_lab]-nuc if self.hparams.flip else labels[mask_lab],
+                num_classes=nlc
+            ).float()
             .to(self.device)
         )
         targets = torch.zeros_like(logits)

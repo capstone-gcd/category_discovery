@@ -86,9 +86,17 @@ class Pretrainer(pl.LightningModule):
                 eta_min=self.hparams.min_lr,
             )
         return [optimizer], [scheduler]
+    
+    def unpack_batch(self, batch):
+        images, labels = batch
+        if self.hparams.flip:
+            return images, labels-self.hparams.num_unlabeled_classes
+        else:
+            return images, labels
+            
 
     def training_step(self, batch, batch_idx):
-        images, labels = batch
+        images, labels = self.unpack_batch(batch)
 
         # normalize prototypes
         self.model.normalize_prototypes()
@@ -112,7 +120,7 @@ class Pretrainer(pl.LightningModule):
         return loss_supervised
 
     def validation_step(self, batch, batch_idx):
-        images, labels = batch
+        images, labels = self.unpack_batch(batch)
 
         # forward
         logits = self.model(images)["logits_lab"]
